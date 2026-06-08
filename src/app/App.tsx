@@ -13,7 +13,6 @@ import Calendar from './pages/Calendar';
 import Documents from './pages/Documents';
 import Profile from './pages/Profile';
 import Auth from './pages/Auth';
-import DocumentCategory from './pages/DocumentCategory';
 
 import { useAuth } from './context/AuthContext';
 
@@ -54,10 +53,6 @@ export default function App() {
           <Route path="/dogs/:id" element={<DogDetail />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/documents" element={<Documents />} />
-          <Route
-            path="/documents/:categoryId"
-            element={<DocumentCategory />}
-          />
           <Route path="/profile" element={<Profile />} />
         </Route>
       )}

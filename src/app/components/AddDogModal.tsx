@@ -13,9 +13,9 @@ export default function AddDogModal({
   onClose,
   onSave
 }: AddDogModalProps) {
-
+  // fecha seleccionada en el datepicker
   const [birthDate, setBirthDate] = useState<Date | null>(null);
-
+  // listado básico de razas
   const dogBreeds = [
     'Cocker Spaniel Inglés',
     'Cocker Spaniel Americano',
@@ -41,7 +41,7 @@ export default function AddDogModal({
     'Mestizo',
     'Otro'
   ];
-
+  // datos principales del formulario
   const [formData, setFormData] = useState({
     name: '',
     breed: 'Cocker Spaniel Inglés',
@@ -52,13 +52,12 @@ export default function AddDogModal({
     pedigree: '',
     status: 'Activo',
   });
-
+  // función para mostrar la fecha más legible
   const formatDate = (date: Date | null) => {
 
     if (!date) return '';
 
     const day = date.getDate();
-
     const months = [
       'Enero',
       'Febrero',
@@ -75,26 +74,23 @@ export default function AddDogModal({
     ];
 
     const month = months[date.getMonth()];
-
     const year = date.getFullYear();
 
     return `${day} ${month} ${year}`;
   };
-
+  // envío del formulario
   const handleSubmit = (e: React.FormEvent) => {
-
+    // evitamos recarga de página
     e.preventDefault();
-
+    // validación básica fecha nacimiento
     if (!birthDate) {
-
       alert('Por favor selecciona la fecha de nacimiento');
-
       return;
     }
 
     // CALCULAR EDAD
+    // cálculo automático de edad
     const today = new Date();
-
     const birth = birthDate;
 
     let age = today.getFullYear() - birth.getFullYear();
@@ -102,49 +98,41 @@ export default function AddDogModal({
     const monthDiff =
       today.getMonth() - birth.getMonth();
 
-    if (
+    if (// si todavía no ha cumplido años este año
       monthDiff < 0 ||
       (
         monthDiff === 0 &&
         today.getDate() < birth.getDate()
       )
     ) {
-
       age--;
-
     }
-
+    // texto final de edad
     const ageString =
       age === 0
         ? 'Menos de 1 año'
         : `${age} año${age !== 1 ? 's' : ''}`;
-
+    // objeto completo del perro
     const newDog = {
-
+      // id temporal generado con timestamp
       id: Date.now(),
-
       ...formData,
-
       birthDate: formatDate(birthDate),
-
       age: ageString,
-
-      image: '/src/imports/idea_login1.jpeg',
-
+      // no hay imagen por defecto, evitar ruta inválida
+      image: '',
+      // arrays preparados para futuras funcionalidades
       appointments: [],
-
       medicalHistory: [],
-
       litters: [],
-
       awards: [],
-
       documents: [],
-    };
+    };  
 
     onSave(newDog);
 
     // RESET FORM
+    // limpiar formulario después de guardar
     setBirthDate(null);
 
     setFormData({
@@ -160,7 +148,7 @@ export default function AddDogModal({
 
     onClose();
   };
-
+  // no renderiza nada si el modal está cerrado
   if (!isOpen) return null;
 
   return (
@@ -404,10 +392,6 @@ export default function AddDogModal({
 
                 <option value="Activo">
                   Activo
-                </option>
-
-                <option value="En gestación">
-                  En gestación
                 </option>
 
                 <option value="De baja">

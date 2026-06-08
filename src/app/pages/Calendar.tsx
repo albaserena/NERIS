@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import {
@@ -16,7 +16,7 @@ import { useDogs } from '../context/DogsContext';
 export default function Calendar() {
   
   // FECHA ACTUAL REAL
-  const { dogs } = useDogs();
+  const { dogs, updateDog } = useDogs();
   const location = useLocation();
 
   const eventDate = location.state?.selectedDate
@@ -29,25 +29,156 @@ export default function Calendar() {
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [calendarEvents, setCalendarEvents] = useState<any[]>(() => {
+    const stored = localStorage.getItem('neris_calendar_events');
+    return stored ? JSON.parse(stored) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('neris_calendar_events', JSON.stringify(calendarEvents));
+  }, [calendarEvents]);
+
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const parseEventDate = (date: string | number | undefined): Date | null => {
+    if (typeof date === 'number') {
+      return new Date(currentDate.getFullYear(), currentDate.getMonth(), date);
+    }
+
+    if (!date) return null;
+
+    const dateString = String(date).trim();
+
+    const isoMatch = dateString.match(/^\d{4}-\d{2}-\d{2}$/);
+    if (isoMatch) {
+      const [year, month, day] = dateString.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    const fullIsoDate = new Date(dateString);
+    if (!isNaN(fullIsoDate.getTime())) {
+      return new Date(fullIsoDate.getFullYear(), fullIsoDate.getMonth(), fullIsoDate.getDate());
+    }
+
+    const months: { [key: string]: number } = {
+      'Enero': 0,
+      'Febrero': 1,
+      'Marzo': 2,
+      'Abril': 3,
+      'Mayo': 4,
+      'Junio': 5,
+      'Julio': 6,
+      'Agosto': 7,
+      'Septiembre': 8,
+      'Octubre': 9,
+      'Noviembre': 10,
+      'Diciembre': 11
+    };
+
+    const parts = dateString.split(' ');
+    if (parts.length >= 2) {
+      const day = parseInt(parts[0], 10);
+      const month = months[parts[1]];
+      const year = parts[2] ? parseInt(parts[2], 10) : currentDate.getFullYear();
+      if (!isNaN(day) && month !== undefined && !isNaN(year)) {
+        return new Date(year, month, day);
+      }
+    }
+
+    return null;
+  };
+
+  const getISODate = (date: Date) => formatLocalDate(date);
 
   // EVENTOS VACÍOS PARA NUEVOS USUARIOS
-  const events = dogs.flatMap((dog) =>
-    (dog.appointments || []).map((appointment: any) => ({
-      id: `${dog.id}-${appointment.label}-${appointment.date}`,
+  const dogEvents = dogs.flatMap((dog) => [
+    ...(dog.appointments || []).map((appointment: any, index: number) => ({
+      id: `${dog.id}-appointment-${index}`,
       title: appointment.label,
       date: appointment.date,
       dogName: dog.name,
-      type: 'appointment'
+      type: appointment.type || 'appointment',
+      dogId: dog.id,
+      source: 'appointment',
+      dogEventIndex: index
+    })),
+    ...(dog.events || []).map((event: any, index: number) => ({
+      id: `${dog.id}-event-${index}`,
+      title: event.title || event.label || 'Evento',
+      date: event.date,
+      dogName: dog.name,
+      type: event.type || 'other',
+      dogId: dog.id,
+      source: 'event',
+      dogEventIndex: index
     }))
-  );
-  
-  // GUARDAR EVENTO
-  const handleSaveEvent = () => {};
+  ]);
+
+  const events = [...dogEvents, ...calendarEvents];
+
+  const handleSaveEvent = (data: any) => {
+    if (selectedEvent?.source === 'appointment') {
+      const dog = dogs.find((dog) => dog.id === selectedEvent.dogId);
+      if (dog) {
+        const updatedAppointments = (dog.appointments || []).map((item: any, index: number) =>
+          index === selectedEvent.dogEventIndex
+            ? { ...item, label: data.title, date: data.date, type: data.type }
+            : item
+        );
+        updateDog(dog.id, { appointments: updatedAppointments });
+      }
+    } else if (selectedEvent?.source === 'event') {
+      const dog = dogs.find((dog) => dog.id === selectedEvent.dogId);
+      if (dog) {
+        const updatedEvents = (dog.events || []).map((item: any, index: number) =>
+          index === selectedEvent.dogEventIndex
+            ? { ...item, title: data.title, date: data.date, type: data.type }
+            : item
+        );
+        updateDog(dog.id, { events: updatedEvents });
+      }
+    } else if (selectedEvent?.source === 'custom' && selectedEvent?.id) {
+      setCalendarEvents((prev) =>
+        prev.map((event) =>
+          event.id === selectedEvent.id
+            ? { ...event, ...data, source: 'custom' }
+            : event
+        )
+      );
+    } else {
+      setCalendarEvents((prev) => [
+        ...prev,
+        {
+          id: selectedEvent?.id || Date.now(),
+          ...data,
+          source: 'custom'
+        }
+      ]);
+    }
+
+    setIsEventModalOpen(false);
+    setSelectedEvent(null);
+  };
 
 
   // NUEVO EVENTO
   const handleNewEvent = () => {
-    setSelectedEvent(null);
+    const selectedDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), selectedDay);
+    setSelectedEvent({
+      title: '',
+      date: getISODate(selectedDate),
+      time: '',
+      type: 'vaccine',
+      notes: '',
+      source: 'custom',
+      dogId: location.state?.dogId,
+      dogName: location.state?.dogName
+    });
     setIsEventModalOpen(true);
   };
 
@@ -58,7 +189,29 @@ export default function Calendar() {
   };
 
   // ELIMINAR EVENTO
-  const handleDeleteEvent = () => {};
+  const handleDeleteEvent = (eventToDelete?: any) => {
+    const event = eventToDelete || selectedEvent;
+    if (!event) return;
+
+    if (event.source === 'custom') {
+      setCalendarEvents((prev) => prev.filter((item) => item.id !== event.id));
+    } else if (event.source === 'appointment') {
+      const dog = dogs.find((dog) => dog.id === event.dogId);
+      if (dog) {
+        const updatedAppointments = (dog.appointments || []).filter((_, index: number) => index !== event.dogEventIndex);
+        updateDog(dog.id, { appointments: updatedAppointments });
+      }
+    } else if (event.source === 'event') {
+      const dog = dogs.find((dog) => dog.id === event.dogId);
+      if (dog) {
+        const updatedEvents = (dog.events || []).filter((_, index: number) => index !== event.dogEventIndex);
+        updateDog(dog.id, { events: updatedEvents });
+      }
+    }
+
+    setIsEventModalOpen(false);
+    setSelectedEvent(null);
+  };
 
   // DIAS DEL MES
   const getDaysInMonth = (date: Date) => {
@@ -189,6 +342,12 @@ export default function Calendar() {
       label: 'Entrenamiento',
       color: 'bg-cyan-500',
     },
+
+    {
+      type: 'other',
+      label: 'Otros',
+      color: 'bg-slate-500',
+    },
   ];
 
   // COLOR EVENTO
@@ -216,23 +375,21 @@ export default function Calendar() {
 
   // EVENTOS FILTRADOS
   const getFilteredEvents = (day: number | null) => {
-
     if (!day) return [];
 
-    const month = currentDate.getMonth() + 1;
-    const year = currentDate.getFullYear();
-
-    const formattedDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-    // EVENTOS MANUALES
     const allEvents = events.filter((event: any) => {
-      const eventDate = new Date(event.date);
+      const eventDate = parseEventDate(event.date);
+      if (!eventDate) return false;
 
-      return (
+      const matchesDay =
         eventDate.getDate() === day &&
         eventDate.getMonth() === currentDate.getMonth() &&
-        eventDate.getFullYear() === currentDate.getFullYear()
-      );
+        eventDate.getFullYear() === currentDate.getFullYear();
+
+      if (!matchesDay) return false;
+      if (activeFilters.length === 0) return true;
+
+      return activeFilters.includes(event.type || 'other');
     });
 
     return allEvents;
@@ -495,7 +652,7 @@ export default function Calendar() {
                           </button>
 
                           <button
-                            onClick={() => handleDeleteEvent()}
+                            onClick={() => handleDeleteEvent(event)}
                             className="p-2 rounded-lg bg-red-500/20 text-red-400"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -549,9 +706,10 @@ export default function Calendar() {
           setSelectedEvent(null);
         }}
         event={selectedEvent}
+        dogs={dogs}
         onSave={handleSaveEvent}
         onDelete={handleDeleteEvent}
-        isNew={!selectedEvent}
+        isNew={!selectedEvent?.id}
       />
 
     </div>

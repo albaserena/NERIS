@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import './styles/index.css';
 import App from './app/App';
 import { DogsProvider } from './app/context/DogsContext';
+import { DocsProvider } from './app/context/DocsContext';
 import { AuthProvider } from './app/context/AuthContext';
 
 ReactDOM.createRoot(
@@ -18,7 +19,11 @@ ReactDOM.createRoot(
 
         <DogsProvider>
 
-          <App />
+          <DocsProvider>
+
+            <App />
+
+          </DocsProvider>
 
         </DogsProvider>
 

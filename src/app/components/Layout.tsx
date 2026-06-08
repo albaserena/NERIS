@@ -38,7 +38,7 @@ export default function Layout() {
     {
       path: '/documents',
       icon: FileText,
-      label: 'Docs'
+      label: 'Documentos'
     },
 
     {

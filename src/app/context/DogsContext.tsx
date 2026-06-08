@@ -21,11 +21,20 @@ interface Dog {
   pedigree: string;
   status: string;
   image: string;
-  appointments?: Array<{  label: string;  date: string; type?: string;}>;
+  appointments?: Array<{ label: string; date: string; type?: string }>;
+  events?: Array<{ title?: string; label?: string; date: string; type?: string }>;
   medicalHistory?: Array<{ label: string; date: string }>;
   litters?: Array<{ label: string; date: string; puppies: number }>;
   awards?: Array<{ label: string; event: string }>;
-  documents?: Array<{ name: string; type: string }>;
+  documents?: Array<{
+    id?: string;
+    name: string;
+    type: string;
+    categoryId?: string;
+    createdAt?: string;
+    url?: string;
+    path?: string;
+  }>;
 }
 
 interface DogsContextType {

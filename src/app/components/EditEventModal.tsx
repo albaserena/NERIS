@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Trash2 } from 'lucide-react';
 import DatePicker from './DatePicker';
 
@@ -6,44 +6,65 @@ interface EditEventModalProps {
   isOpen: boolean;
   onClose: () => void;
   event?: {
-    id?: number;
+    id?: number | string;
     title: string;
     date: string | number;
     time: string;
     type: string;
     notes?: string;
+    source?: string;
+    dogId?: number;
+    dogName?: string;
+    dogEventIndex?: number;
   };
+  dogs?: Array<{ id: number; name: string }>;
   onSave: (data: any) => void;
-  onDelete?: (eventId: number) => void;
+  onDelete?: (event: any) => void;
   isNew?: boolean;
 }
 
-export default function EditEventModal({ isOpen, onClose, event, onSave, onDelete, isNew = false }: EditEventModalProps) {
+export default function EditEventModal({ isOpen, onClose, event, onSave, onDelete, isNew = false, dogs = [] }: EditEventModalProps) {
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const parseEventDate = (dateStr: string | number | undefined): Date | null => {
     if (!dateStr) return null;
 
-    // Si es un número (día del mes), crear fecha con el mes actual
     if (typeof dateStr === 'number') {
       const now = new Date();
       return new Date(now.getFullYear(), now.getMonth(), dateStr);
     }
 
-    // Si no es un string, retornar null
-    if (typeof dateStr !== 'string') return null;
+    const normalized = String(dateStr).trim();
+    const isoMatch = normalized.match(/^\d{4}-\d{2}-\d{2}$/);
+    if (isoMatch) {
+      const [year, month, day] = normalized.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    const isoDate = new Date(normalized);
+    if (!isNaN(isoDate.getTime())) {
+      return new Date(isoDate.getFullYear(), isoDate.getMonth(), isoDate.getDate());
+    }
 
     const months: { [key: string]: number } = {
       'Enero': 0, 'Febrero': 1, 'Marzo': 2, 'Abril': 3, 'Mayo': 4, 'Junio': 5,
       'Julio': 6, 'Agosto': 7, 'Septiembre': 8, 'Octubre': 9, 'Noviembre': 10, 'Diciembre': 11
     };
-    const parts = dateStr.split(' ');
+    const parts = normalized.split(' ');
     if (parts.length >= 2) {
-      const day = parseInt(parts[0]);
+      const day = parseInt(parts[0], 10);
       const month = months[parts[1]];
-      const year = parts[2] ? parseInt(parts[2]) : new Date().getFullYear();
+      const year = parts[2] ? parseInt(parts[2], 10) : new Date().getFullYear();
       if (!isNaN(day) && month !== undefined && !isNaN(year)) {
         return new Date(year, month, day);
       }
     }
+
     return null;
   };
 
@@ -59,12 +80,25 @@ export default function EditEventModal({ isOpen, onClose, event, onSave, onDelet
   };
 
   const [eventDate, setEventDate] = useState<Date | null>(parseEventDate(event?.date || ''));
+  const [selectedDogId, setSelectedDogId] = useState<number | undefined>(event?.dogId ?? dogs[0]?.id);
   const [formData, setFormData] = useState({
     title: event?.title || '',
     time: event?.time || '',
     type: event?.type || 'vaccine',
     notes: event?.notes || '',
   });
+
+  const selectedDog = dogs.find((dog) => dog.id === selectedDogId);
+
+  useEffect(() => {
+    if (event?.dogId) {
+      setSelectedDogId(event.dogId);
+    } else if (dogs.length > 0) {
+      setSelectedDogId(dogs[0].id);
+    } else {
+      setSelectedDogId(undefined);
+    }
+  }, [event?.dogId, dogs]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,16 +108,18 @@ export default function EditEventModal({ isOpen, onClose, event, onSave, onDelet
     }
     onSave({
       ...formData,
-      date: eventDate.getDate(), // Guardar solo el día del mes como número
-      id: event?.id || Date.now()
+      date: formatLocalDate(eventDate),
+      id: event?.id || Date.now(),
+      dogId: selectedDogId,
+      dogName: selectedDog?.name
     });
     onClose();
   };
 
   const handleDelete = () => {
-    if (event?.id && onDelete) {
+    if (event && onDelete) {
       if (confirm(`¿Eliminar "${formData.title}"?`)) {
-        onDelete(event.id);
+        onDelete(event);
         onClose();
       }
     }
@@ -147,6 +183,27 @@ export default function EditEventModal({ isOpen, onClose, event, onSave, onDelet
                 required
               />
             </div>
+
+            {/* Dog */}
+            {dogs.length > 0 && (
+              <div>
+                <label htmlFor="dog" className="text-slate-300 text-sm block mb-2">
+                  Perro asociado
+                </label>
+                <select
+                  id="dog"
+                  value={selectedDogId ?? ''}
+                  onChange={(e) => setSelectedDogId(Number(e.target.value))}
+                  className="w-full px-4 py-3 rounded-xl bg-slate-700 border border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-transparent transition-all"
+                >
+                  {dogs.map((dog) => (
+                    <option key={dog.id} value={dog.id}>
+                      {dog.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Type */}
             <div>

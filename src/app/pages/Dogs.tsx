@@ -64,11 +64,18 @@ export default function Dogs() {
               <div className="flex gap-3 p-3 border-b border-slate-700/50">
                 {/* Dog Image */}
                 <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-slate-700">
-                  <img
-                    src={dog.image}
-                    alt={dog.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
+                  {dog.image ? (
+                    <img
+                      src={dog.image}
+                      alt={dog.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        img.onerror = null;
+                        img.style.display = 'none';
+                      }}
+                    />
+                  ) : null}
                 </div>
 
                 {/* Name, Breed, Status */}

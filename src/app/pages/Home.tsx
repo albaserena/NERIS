@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import {
@@ -11,44 +12,147 @@ import {
 } from 'lucide-react';
 
 import { useDogs } from '../context/DogsContext';
+import { useDocs } from '../context/DocsContext';
 
 export default function Home() {
 
   const { dogs } = useDogs();
+  const { documents } = useDocs();
+  const [calendarEvents, setCalendarEvents] = useState<any[]>([]);
 
-  // SOLO MOSTRAR 3
-  const displayDogs = dogs.slice(0, 3);
+  useEffect(() => {
+    const stored = localStorage.getItem('neris_calendar_events');
+    if (stored) {
+      try {
+        setCalendarEvents(JSON.parse(stored));
+      } catch {
+        setCalendarEvents([]);
+      }
+    }
+  }, []);
 
-  // VACUNAS DINÁMICAS
-  const upcomingVaccines = dogs.flatMap(
-    (dog: any) =>
-      dog.appointments?.map((item: any, index: number) => ({
-        id: `${dog.id}-vac-${index}`,
+  const displayDogs = dogs;
+
+  // FUNCIÓN PARA PARSEAR FECHAS
+  const parseDate = (date: string | number | undefined): Date | null => {
+    if (!date) return null;
+    
+    if (typeof date === 'number') {
+      return new Date(date);
+    }
+    
+    const dateString = String(date).trim();
+    const isoMatch = dateString.match(/^\d{4}-\d{2}-\d{2}$/);
+    if (isoMatch) {
+      const [year, month, day] = dateString.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    }
+
+    const isoDate = new Date(dateString);
+    if (!isNaN(isoDate.getTime())) {
+      return new Date(isoDate.getFullYear(), isoDate.getMonth(), isoDate.getDate());
+    }
+
+    const months: { [key: string]: number } = {
+      'Enero': 0,
+      'Febrero': 1,
+      'Marzo': 2,
+      'Abril': 3,
+      'Mayo': 4,
+      'Junio': 5,
+      'Julio': 6,
+      'Agosto': 7,
+      'Septiembre': 8,
+      'Octubre': 9,
+      'Noviembre': 10,
+      'Diciembre': 11
+    };
+
+    const normalized = String(date).trim().replace(/\s+/g, ' ');
+    const parts = normalized.split(' ');
+    if (parts.length >= 2) {
+      const day = parseInt(parts[0], 10);
+      const month = months[parts[1]];
+      const year = parts[2] ? parseInt(parts[2], 10) : new Date().getFullYear();
+
+      if (!isNaN(day) && month !== undefined && !isNaN(year)) {
+        return new Date(year, month, day);
+      }
+    }
+
+    return null;
+  };
+
+  // FUNCIÓN PARA FILTRAR EVENTOS FUTUROS
+  const isFutureOrToday = (eventDate: string | number | undefined): boolean => {
+    const parsed = parseDate(eventDate);
+    if (!parsed) return false;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    parsed.setHours(0, 0, 0, 0);
+    
+    return parsed.getTime() >= today.getTime();
+  };
+
+  // VACUNAS DINÁMICAS (SOLO FUTURAS)
+  const upcomingVaccines = [
+    ...dogs.flatMap(
+      (dog: any) =>
+        dog.appointments?.filter((item: any) => isFutureOrToday(item.date)).map((item: any, index: number) => ({
+          id: `${dog.id}-vac-${index}`,
+          ...item,
+          dog: dog.name
+        })) || []
+    ),
+    ...calendarEvents
+      .filter((item) => item.type === 'vaccine' && isFutureOrToday(item.date))
+      .map((item: any, index: number) => ({
+        id: `calendar-vac-${index}`,
         ...item,
-        dog: dog.name
-      })) || []
-  );
+        dog: item.dogName || item.title || 'Calendario',
+        vaccine: item.title || item.label || 'Vacuna'
+      }))
+  ].sort((a, b) => {
+    const dateA = parseDate(a.date)?.getTime() || 0;
+    const dateB = parseDate(b.date)?.getTime() || 0;
+    return dateA - dateB;
+  });
 
-  // EVENTOS DINÁMICOS
-  const upcomingEvents = dogs.flatMap(
-    (dog: any) => [
+  // EVENTOS DINÁMICOS (SOLO FUTUROS)
+  const upcomingEvents = [
+    ...dogs.flatMap(
+      (dog: any) => [
 
-      ...(dog.litters?.map((item: any, index: number) => ({
-        id: `${dog.id}-lit-${index}`,
-        title: item.title || `Camada - ${dog.name}`,
-        date: item.date,
-        dog: dog.name
-      })) || []),
+        ...(dog.litters?.filter((item: any) => isFutureOrToday(item.date)).map((item: any, index: number) => ({
+          id: `${dog.id}-lit-${index}`,
+          title: item.title || `Camada - ${dog.name}`,
+          date: item.date,
+          dog: dog.name
+        })) || []),
 
-      ...(dog.events?.map((item: any, index: number) => ({
-        id: `${dog.id}-event-${index}`,
+        ...(dog.events?.filter((item: any) => isFutureOrToday(item.date)).map((item: any, index: number) => ({
+          id: `${dog.id}-event-${index}`,
+          title: item.title,
+          date: item.date,
+          dog: dog.name
+        })) || [])
+
+      ]
+    ),
+    ...calendarEvents
+      .filter((item) => item.type !== 'vaccine' && isFutureOrToday(item.date))
+      .map((item: any, index: number) => ({
+        id: `calendar-event-${index}`,
         title: item.title,
         date: item.date,
-        dog: dog.name
-      })) || [])
-
-    ]
-  );
+        dog: item.dogName || item.title || 'Calendario'
+      }))
+  ].sort((a, b) => {
+    const dateA = parseDate(a.date)?.getTime() || 0;
+    const dateB = parseDate(b.date)?.getTime() || 0;
+    return dateA - dateB;
+  });
 
   // DOCUMENTOS DINÁMICOS
   const pendingDocs = dogs.flatMap(
@@ -155,13 +259,20 @@ export default function Home() {
                 >
 
                   <div className="w-full h-20 rounded-lg overflow-hidden mb-2 bg-slate-700">
-
-                    <img
-                      src={dog.image}
-                      alt={dog.name}
-                      className="w-full h-full object-cover"
-                    />
-
+                    {dog.image ? (
+                      <img
+                        src={dog.image}
+                        alt={dog.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          img.onerror = null;
+                          img.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-slate-700" />
+                    )}
                   </div>
 
                   <p className="text-white text-sm">
@@ -334,12 +445,12 @@ export default function Home() {
         {/* DOCUMENTOS */}
         <Link
           to="/documents"
-          className="block bg-slate-800/60 backdrop-blur-sm rounded-xl p-4 border border-slate-700/60 hover:border-orange-500/40 hover:bg-slate-800/80 transition-all"
+          className="block bg-slate-800/60 backdrop-blur-sm rounded-xl p-4 border border-slate-700/60 hover:border-amber-500/40 hover:bg-slate-800/80 transition-all"
         >
 
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3">
 
-            <div className="w-12 h-12 rounded-xl bg-orange-500 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-amber-500 flex items-center justify-center">
 
               <FileText className="w-6 h-6 text-white" />
 
@@ -348,55 +459,18 @@ export default function Home() {
             <div className="flex-1">
 
               <h2 className="text-white text-lg">
-                Documentos
+                Documentación
               </h2>
 
-              <p className="text-orange-300 text-sm">
-                {pendingDocs.length} registrados
+              <p className="text-amber-300 text-sm">
+                {documents.length} archivo{documents.length === 1 ? '' : 's'} guardado{documents.length === 1 ? '' : 's'}
               </p>
 
             </div>
 
-            <ChevronRight className="w-5 h-5 text-orange-400" />
+            <ChevronRight className="w-5 h-5 text-amber-400" />
 
           </div>
-
-          {pendingDocs.length === 0 ? (
-
-            <div className="bg-slate-700/30 rounded-xl border border-dashed border-slate-600 p-4 text-center">
-
-              <p className="text-slate-400 text-sm">
-                No tienes documentos todavía
-              </p>
-
-            </div>
-
-          ) : (
-
-            <div className="grid grid-cols-2 gap-2">
-
-              {pendingDocs.slice(0, 4).map((doc) => (
-
-                <div
-                  key={doc.id}
-                  className="bg-slate-700/40 rounded-lg p-3 border border-slate-600/40"
-                >
-
-                  <p className="text-white text-sm mb-2 truncate">
-                    {doc.title || doc.name}
-                  </p>
-
-                  <span className="px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs">
-                    Guardado
-                  </span>
-
-                </div>
-
-              ))}
-
-            </div>
-
-          )}
 
         </Link>
 

@@ -11,7 +11,6 @@ import {
   Award,
   Trash2,
   Trophy,
-  Plus,
   Cake,
   Weight
 } from 'lucide-react';
@@ -38,10 +37,12 @@ export default function DogDetail() {
   const {
     getDogById,
     updateDog,
-    deleteDog
+    deleteDog,
+    dogs
   } = useDogs();
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedDocDogId, setSelectedDocDogId] = useState<number>(Number(id));
 
   const dog = getDogById(Number(id));
 
@@ -52,6 +53,12 @@ export default function DogDetail() {
     }
 
   }, [dog, navigate]);
+
+  useEffect(() => {
+    if (dog) {
+      setSelectedDocDogId(dog.id);
+    }
+  }, [dog]);
 
   if (!dog) return null;
 
@@ -124,13 +131,19 @@ export default function DogDetail() {
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950">
 
       {/* HEADER */}
-      <div className="relative h-80">
-
-        <img
-          src={dog.image || '/placeholder-dog.jpg'}
-          alt={dog.name}
-          className="w-full h-full object-cover"
-        />
+      <div className="relative h-80 bg-slate-900">
+        {dog.image ? (
+          <img
+            src={dog.image}
+            alt={dog.name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              const img = e.currentTarget;
+              img.onerror = null;
+              img.style.display = 'none';
+            }}
+          />
+        ) : null}
 
         <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent" />
 
@@ -374,7 +387,9 @@ export default function DogDetail() {
 
                               navigate('/calendar', {
                                 state: {
-                                  selectedDate: item.date
+                                  selectedDate: item.date,
+                                  dogId: dog.id,
+                                  dogName: dog.name
                                 }
                               });
 
@@ -421,95 +436,91 @@ export default function DogDetail() {
             );
           })}
 
-        </div>
+          {/* EXPOSICIONES */}
+          <div className="bg-slate-800/40 rounded-2xl border border-slate-700/50 overflow-hidden">
 
-        {/* EXPOSICIONES */}
-        <div className="bg-slate-800/40 rounded-2xl border border-slate-700/50 overflow-hidden">
+            <div className="flex items-center gap-3 p-4">
 
-          <div className="flex items-center gap-3 p-4">
-
-            <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center">
-              <Trophy className="w-5 h-5 text-white" />
-            </div>
-
-            <div>
-
-              <h2 className="text-white font-semibold">
-                Resultados de Exposiciones
-              </h2>
-
-              <p className="text-slate-400 text-xs">
-                {expositionResults.length} resultados
-              </p>
-
-            </div>
-
-          </div>
-
-          <div className="p-4">
-
-            {expositionResults.length > 0 ? (
-
-              <div className="space-y-2">
-
-                {expositionResults.map((expo: any) => (
-
-                  <div
-                    key={expo.id}
-                    className="bg-slate-700/30 rounded-xl p-3"
-                  >
-
-                    <p className="text-white text-sm font-semibold mb-2">
-                      {expo.title}
-                    </p>
-
-                    <div className="flex flex-wrap gap-2">
-
-                      {expo.badges.map((badge: string, index: number) => (
-
-                        <span
-                          key={index}
-                          className="px-2 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs"
-                        >
-                          {badge}
-                        </span>
-
-                      ))}
-
-                    </div>
-
-                  </div>
-
-                ))}
-
+              <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center">
+                <Trophy className="w-5 h-5 text-white" />
               </div>
 
-            ) : (
+              <div>
 
-              <div className="text-center py-12">
+                <h2 className="text-white font-semibold">
+                  Resultados de Exposiciones
+                </h2>
 
-                <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                  <Trophy className="w-6 h-6 text-white" />
-                </div>
-
-                <p className="text-slate-500 text-xs">
-                  No hay exposiciones registradas
+                <p className="text-slate-400 text-xs">
+                  {expositionResults.length} resultados
                 </p>
 
               </div>
 
-            )}
+            </div>
+
+            <div className="p-4">
+
+              {expositionResults.length > 0 ? (
+
+                <div className="space-y-2">
+
+                  {expositionResults.map((expo: any) => (
+
+                    <div
+                      key={expo.id}
+                      className="bg-slate-700/30 rounded-xl p-3"
+                    >
+
+                      <p className="text-white text-sm font-semibold mb-2">
+                        {expo.title}
+                      </p>
+
+                      <div className="flex flex-wrap gap-2">
+
+                        {expo.badges.map((badge: string, index: number) => (
+
+                          <span
+                            key={index}
+                            className="px-2 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs"
+                          >
+                            {badge}
+                          </span>
+
+                        ))}
+
+                      </div>
+
+                    </div>
+
+                  ))}
+
+                </div>
+
+              ) : (
+
+                <div className="text-center py-12">
+
+                  <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                    <Trophy className="w-6 h-6 text-white" />
+                  </div>
+
+                  <p className="text-slate-500 text-xs">
+                    No hay exposiciones registradas
+                  </p>
+
+                </div>
+
+              )}
+
+            </div>
 
           </div>
 
-        </div>
+          {/* DOCUMENTACIÓN */}
+          <div className="md:col-span-2 bg-slate-800/40 rounded-2xl border border-slate-700/50 overflow-hidden">
 
-        {/* DOCUMENTOS */}
-        <div className="bg-slate-800/40 rounded-2xl border border-slate-700/50 overflow-hidden">
-
-          <div className="flex items-center justify-between p-4">
-
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 p-4 border-b border-slate-700/50">
 
               <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
                 <FileText className="w-5 h-5 text-white" />
@@ -518,86 +529,61 @@ export default function DogDetail() {
               <div>
 
                 <h2 className="text-white font-semibold">
-                  Documentos
+                  Documentación
                 </h2>
 
                 <p className="text-slate-400 text-xs">
-                  {(dog.documents || []).length} archivos
+                  Archivos y documentos relacionados con este perro y la vista de inicio.
                 </p>
 
               </div>
 
             </div>
 
-            <label className="cursor-pointer">
+            <div className="p-4">
 
-              <input
-                type="file"
-                className="hidden"
-              />
+              <div className="rounded-xl border border-slate-700/50 bg-slate-700/30 p-4 space-y-4">
 
-              <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                <Plus className="w-5 h-5 text-blue-400" />
-              </div>
-
-            </label>
-
-          </div>
-
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-
-            {(dog.documents || []).length > 0 ? (
-
-              (dog.documents || []).map((doc: any, index: number) => (
-
-                <button
-                  key={index}
-                  className="w-full bg-slate-700/30 rounded-xl p-3 text-left"
-                >
-
-                  <div className="flex items-center gap-3">
-
-                    <div className="w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-blue-400" />
-                    </div>
-
-                    <div>
-
-                      <p className="text-white text-sm font-semibold">
-                        {doc.name}
-                      </p>
-
-                      <p className="text-slate-400 text-xs">
-                        {doc.type}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                </button>
-
-              ))
-
-            ) : (
-
-              <div className="col-span-full text-center py-12">
-
-                <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-slate-700/40 flex items-center justify-center">
-                  <FileText className="w-6 h-6 text-slate-500" />
-                </div>
-
-                <p className="text-slate-500 text-xs">
-                  No hay documentos registrados
+                <p className="text-slate-300 text-sm">
+                  En esta sección puedes elegir el perro responsable del documento antes de ir al área de Documentos.
                 </p>
 
+                <div>
+                  <label className="text-slate-400 text-xs block mb-2">Documento asignado a:</label>
+                  <select
+                    value={selectedDocDogId}
+                    onChange={(e) => setSelectedDocDogId(Number(e.target.value))}
+                    className="w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500"
+                  >
+                    {dogs.map((dogOption) => (
+                      <option key={dogOption.id} value={dogOption.id}>
+                        {dogOption.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  onClick={() => navigate('/documents', {
+                    state: {
+                      dogId: selectedDocDogId,
+                      dogName: dogs.find((dogOption) => dogOption.id === selectedDocDogId)?.name
+                    }
+                  })}
+                  className="w-full rounded-2xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-600"
+                >
+                  Abrir Documentos para {dogs.find((dogOption) => dogOption.id === selectedDocDogId)?.name}
+                </button>
+
               </div>
 
-            )}
+            </div>
 
           </div>
 
         </div>
+
+        {/* Documents UI removed */}
 
         {/* DELETE */}
         <button
